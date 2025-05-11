@@ -34,4 +34,4 @@ public class DashboardFragment extends Fragment {
         super.onDestroyView();
         binding = null;
     }
-}
+} 
