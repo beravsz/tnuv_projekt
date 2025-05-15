@@ -3,4 +3,19 @@
     <string name="title_map">Map</string>
     <string name="title_sensor_status">Sensor Status</string>
     <string name="title_event_timeline">Event Timeline</string>
+    <string name="sensor_tivoli">Tivoli</string>
+    <string name="sensor_roznik_sever">Rožnik Sever</string>
+    <string name="sensor_roznik_jug">Rožnik Jug</string>
+    <string name="sensor_bled">Bled</string>
+    <string name="sensor_battery">Battery %1$d%%</string>
+    <string name="sensor_status">Status: %1$s</string>
+    <string name="status_normal">Normal</string>
+    <string name="status_wind">Wind</string>
+    <string name="status_fire">Fire</string>
+    <string name="status_rain">Rain</string>
+    <string name="add_sensor">Add Sensor</string>
+    <string name="dialog_add_sensor_title">Add Sensor</string>
+    <string name="dialog_sensor_name_hint">Sensor Name</string>
+    <string name="dialog_add">Add</string>
+    <string name="dialog_cancel">Cancel</string>
 </resources>
