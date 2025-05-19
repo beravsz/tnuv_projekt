@@ -49,17 +49,18 @@ public class NotificationsFragment extends Fragment {
     private void generateRandomEvents() {
         events.clear();
         String[] sensorNames = {"Tivoli", "Rožnik Sever", "Rožnik Jug", "Bled"};
-        String[] statuses = {"Normal", "Wind", "Rain", "Fire"};
+        String[] initialStatuses = {"Normal", "Wind", "Rain"}; // Statuses for initial history
+        String[] allStatuses = {"Normal", "Wind", "Rain", "Fire"}; // All possible statuses
         Random random = new Random();
         Calendar now = Calendar.getInstance();
         for (String sensor : sensorNames) {
             int eventCount = 2 + random.nextInt(3); // 2-4 events per sensor
-            String prevStatus = statuses[random.nextInt(statuses.length)];
+            String prevStatus = initialStatuses[random.nextInt(initialStatuses.length)];
             Calendar eventTime = (Calendar) now.clone();
             for (int i = 0; i < eventCount; i++) {
                 String newStatus;
                 do {
-                    newStatus = statuses[random.nextInt(statuses.length)];
+                    newStatus = initialStatuses[random.nextInt(initialStatuses.length)];
                 } while (newStatus.equals(prevStatus));
                 eventTime.add(Calendar.MINUTE, -random.nextInt(120) - 10); // randomize time
                 String description = sensor + " changed status from " + prevStatus + " to " + newStatus;
