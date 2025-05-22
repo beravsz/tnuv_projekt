@@ -5,6 +5,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -14,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import si.uni_lj.fe.tnuv.ignisguard.databinding.FragmentNotificationsBinding;
 import si.uni_lj.fe.tnuv.ignisguard.ui.common.Sensor;
+import si.uni_lj.fe.tnuv.ignisguard.ui.common.SensorManager;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -21,13 +24,27 @@ import java.util.List;
 import java.util.Random;
 import android.graphics.Color;
 import si.uni_lj.fe.tnuv.ignisguard.R;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.lang.reflect.Type;
 
-public class NotificationsFragment extends Fragment {
+public class NotificationsFragment extends Fragment implements SensorManager.OnSensorUpdateListener {
 
     private FragmentNotificationsBinding binding;
     private RecyclerView recyclerView;
     private final List<Event> events = new ArrayList<>();
     private EventAdapter adapter;
+    private SensorManager sensorManager;
+    private SharedPreferences prefs;
+    private Gson gson = new Gson();
+    private static final String EVENTS_KEY = "events_list";
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        sensorManager = SensorManager.getInstance();
+        prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+    }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -40,17 +57,54 @@ public class NotificationsFragment extends Fragment {
         recyclerView = binding.recyclerEvents;
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        generateRandomEvents();
+        // Load events from SharedPreferences
+        loadEvents();
+        
+        // If no events exist, generate initial random events
+        if (events.isEmpty()) {
+            generateRandomEvents();
+            saveEvents();
+        }
+
         adapter = new EventAdapter(events);
         recyclerView.setAdapter(adapter);
+
+        // Initialize sensor manager and start updates
+        sensorManager.addListener(this);
+        sensorManager.startUpdates();
+
         return root;
     }
 
+    @Override
+    public void onSensorUpdated(Sensor sensor, String oldStatus) {
+        if (oldStatus != null) {
+            Calendar now = Calendar.getInstance();
+            String description = sensor.name + " changed status from " + oldStatus + " to " + sensor.status;
+            events.add(0, new Event(now, description, sensor.status));
+            adapter.notifyItemInserted(0);
+            recyclerView.smoothScrollToPosition(0);
+            saveEvents(); // Save events after adding new one
+        }
+    }
+
+    private void loadEvents() {
+        String json = prefs.getString(EVENTS_KEY, null);
+        if (json != null) {
+            Type type = new TypeToken<List<Event>>(){}.getType();
+            List<Event> loadedEvents = gson.fromJson(json, type);
+            events.clear();
+            events.addAll(loadedEvents);
+        }
+    }
+
+    private void saveEvents() {
+        prefs.edit().putString(EVENTS_KEY, gson.toJson(events)).apply();
+    }
+
     private void generateRandomEvents() {
-        events.clear();
         String[] sensorNames = {"Tivoli", "Rožnik Sever", "Rožnik Jug", "Bled"};
         String[] initialStatuses = {"Normal", "Wind", "Rain"}; // Statuses for initial history
-        String[] allStatuses = {"Normal", "Wind", "Rain", "Fire"}; // All possible statuses
         Random random = new Random();
         Calendar now = Calendar.getInstance();
         for (String sensor : sensorNames) {
@@ -122,6 +176,9 @@ public class NotificationsFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (sensorManager != null) {
+            sensorManager.removeListener(this);
+        }
         binding = null;
     }
 } 

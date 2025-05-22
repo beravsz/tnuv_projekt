@@ -25,6 +25,7 @@ import java.util.Map;
 
 import si.uni_lj.fe.tnuv.ignisguard.R;
 import si.uni_lj.fe.tnuv.ignisguard.ui.common.Sensor;
+import si.uni_lj.fe.tnuv.ignisguard.ui.common.SensorManager;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
@@ -35,7 +36,7 @@ import android.graphics.drawable.Drawable;
 import androidx.core.content.ContextCompat;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 
-public class HomeFragment extends Fragment implements OnMapReadyCallback {
+public class HomeFragment extends Fragment implements OnMapReadyCallback, SensorManager.OnSensorUpdateListener {
 
     private GoogleMap mMap;
     // Example sensor data with locations (to be replaced with shared data)
@@ -51,6 +52,7 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
     private Gson gson = new Gson();
     private static final String SENSORS_KEY = "sensors_list";
     private final List<Marker> sensorMarkers = new ArrayList<>();
+    private SensorManager sensorManager;
 
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -59,6 +61,12 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
         sensors.clear();
         sensors.addAll(loadSensors());
+        
+        // Initialize sensor manager and start updates
+        sensorManager = SensorManager.getInstance();
+        sensorManager.addListener(this);
+        sensorManager.startUpdates();
+        
         // Setup map
         SupportMapFragment mapFragment = (SupportMapFragment) getChildFragmentManager().findFragmentById(R.id.map);
         if (mapFragment != null) {
@@ -170,5 +178,28 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         Canvas canvas = new Canvas(bitmap);
         vectorDrawable.draw(canvas);
         return BitmapDescriptorFactory.fromBitmap(bitmap);
+    }
+
+    @Override
+    public void onSensorUpdated(Sensor sensor, String oldStatus) {
+        if (mMap != null) {
+            // Find and update the marker for this sensor
+            for (Marker marker : sensorMarkers) {
+                Object tag = marker.getTag();
+                if (tag instanceof Sensor && ((Sensor) tag).name.equals(sensor.name)) {
+                    marker.setIcon(getMarkerIcon(sensor.status));
+                    marker.setTag(sensor);
+                    break;
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (sensorManager != null) {
+            sensorManager.removeListener(this);
+        }
     }
 } 
