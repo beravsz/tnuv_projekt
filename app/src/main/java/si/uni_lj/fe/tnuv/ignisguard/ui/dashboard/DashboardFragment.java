@@ -106,43 +106,78 @@ public class DashboardFragment extends Fragment {
         inputName.setSingleLine();
         inputName.setImeOptions(EditorInfo.IME_ACTION_NEXT);
 
-        final EditText inputAddress = new EditText(getContext());
-        inputAddress.setHint("Sensor Address");
-        inputAddress.setSingleLine();
-        inputAddress.setImeOptions(EditorInfo.IME_ACTION_DONE);
+        // Latitude row
+        LinearLayout latRow = new LinearLayout(getContext());
+        latRow.setOrientation(LinearLayout.HORIZONTAL);
+        final EditText latDeg = new EditText(getContext());
+        latDeg.setHint("deg");
+        latDeg.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
+        latDeg.setEms(3);
+        final EditText latMin = new EditText(getContext());
+        latMin.setHint("min");
+        latMin.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        latMin.setEms(2);
+        final EditText latSec = new EditText(getContext());
+        latSec.setHint("sec");
+        latSec.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        latSec.setEms(4);
+        latRow.addView(latDeg);
+        latRow.addView(latMin);
+        latRow.addView(latSec);
+
+        // Longitude row
+        LinearLayout lonRow = new LinearLayout(getContext());
+        lonRow.setOrientation(LinearLayout.HORIZONTAL);
+        final EditText lonDeg = new EditText(getContext());
+        lonDeg.setHint("deg");
+        lonDeg.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
+        lonDeg.setEms(3);
+        final EditText lonMin = new EditText(getContext());
+        lonMin.setHint("min");
+        lonMin.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        lonMin.setEms(2);
+        final EditText lonSec = new EditText(getContext());
+        lonSec.setHint("sec");
+        lonSec.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        lonSec.setEms(4);
+        lonRow.addView(lonDeg);
+        lonRow.addView(lonMin);
+        lonRow.addView(lonSec);
+
+        // Labels
+        TextView latLabel = new TextView(getContext());
+        latLabel.setText("Latitude");
+        TextView lonLabel = new TextView(getContext());
+        lonLabel.setText("Longitude");
 
         LinearLayout layout = new LinearLayout(getContext());
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.addView(inputName);
-        layout.addView(inputAddress);
+        layout.addView(latLabel);
+        layout.addView(latRow);
+        layout.addView(lonLabel);
+        layout.addView(lonRow);
         builder.setView(layout);
 
         DialogInterface.OnClickListener addListener = (dialog, which) -> {
             String name = inputName.getText().toString().trim();
-            String address = inputAddress.getText().toString().trim();
-            if (!name.isEmpty() && !address.isEmpty()) {
+            if (!name.isEmpty()) {
                 Random random = new Random();
                 int battery = 50 + random.nextInt(51); // 50-100
                 String[] statuses = {"Normal", "Wind", "Rain"};
                 String status = statuses[random.nextInt(statuses.length)];
                 double lat = 0, lon = 0;
-                double[] dmsCoords = parseDMS(address);
-                if (dmsCoords != null) {
-                    lat = dmsCoords[0];
-                    lon = dmsCoords[1];
-                } else {
-                    try {
-                        Geocoder geocoder = new Geocoder(getContext(), Locale.getDefault());
-                        java.util.List<Address> addresses = geocoder.getFromLocationName(address, 1);
-                        if (addresses != null && !addresses.isEmpty()) {
-                            lat = addresses.get(0).getLatitude();
-                            lon = addresses.get(0).getLongitude();
-                        } else {
-                            Toast.makeText(getContext(), "Address not found, using (0,0)", Toast.LENGTH_SHORT).show();
-                        }
-                    } catch (IOException e) {
-                        Toast.makeText(getContext(), "Geocoding failed, using (0,0)", Toast.LENGTH_SHORT).show();
-                    }
+                try {
+                    int latD = Integer.parseInt(latDeg.getText().toString());
+                    int latM = Integer.parseInt(latMin.getText().toString());
+                    double latS = Double.parseDouble(latSec.getText().toString());
+                    int lonD = Integer.parseInt(lonDeg.getText().toString());
+                    int lonM = Integer.parseInt(lonMin.getText().toString());
+                    double lonS = Double.parseDouble(lonSec.getText().toString());
+                    lat = dmsToDecimal(latD, latM, latS);
+                    lon = dmsToDecimal(lonD, lonM, lonS);
+                } catch (Exception e) {
+                    Toast.makeText(getContext(), "Invalid DMS input, using (0,0)", Toast.LENGTH_SHORT).show();
                 }
                 sensors.add(new Sensor(name, battery, status, lat, lon));
                 adapter.notifyItemInserted(sensors.size() - 1);
@@ -153,44 +188,12 @@ public class DashboardFragment extends Fragment {
         builder.setPositiveButton(getString(R.string.dialog_add), addListener);
         builder.setNegativeButton(getString(R.string.dialog_cancel), (dialog, which) -> dialog.cancel());
         AlertDialog dialog = builder.create();
-        inputAddress.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
-                addListener.onClick(dialog, DialogInterface.BUTTON_POSITIVE);
-                dialog.dismiss();
-                return true;
-            }
-            return false;
-        });
         dialog.show();
     }
 
-    private double[] parseDMS(String input) {
-        // Example: 46°10'12.0"N 14°19'53.8"E
-        try {
-            String[] parts = input.split(" ");
-            if (parts.length != 2) return null;
-            double lat = dmsToDecimal(parts[0]);
-            double lon = dmsToDecimal(parts[1]);
-            return new double[]{lat, lon};
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private double dmsToDecimal(String dms) {
-        // Example: 46°10'12.0"N or 14°19'53.8"E
-        dms = dms.replace("\u00B0", "°"); // normalize degree symbol
-        String regex = "(\\d+)°(\\d+)'(\\d+(?:\\.\\d+)?)\"?([NSEW])";
-        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(regex);
-        java.util.regex.Matcher matcher = pattern.matcher(dms);
-        if (!matcher.matches()) throw new IllegalArgumentException("Invalid DMS");
-        int deg = Integer.parseInt(matcher.group(1));
-        int min = Integer.parseInt(matcher.group(2));
-        double sec = Double.parseDouble(matcher.group(3));
-        String dir = matcher.group(4);
-        double dec = deg + min / 60.0 + sec / 3600.0;
-        if (dir.equals("S") || dir.equals("W")) dec = -dec;
-        return dec;
+    private double dmsToDecimal(int deg, int min, double sec) {
+        double dec = Math.abs(deg) + min / 60.0 + sec / 3600.0;
+        return deg < 0 ? -dec : dec;
     }
 
     @Override
