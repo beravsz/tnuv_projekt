@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">IgnisGuard</string>
     <string name="title_map">Map</string>
-    <string name="title_sensor_status">Sensor Status</string>
+    <string name="title_sensor_status">Sensor List</string>
     <string name="title_event_timeline">Event Timeline</string>
     <string name="sensor_tivoli">Tivoli</string>
     <string name="sensor_roznik_sever">Rožnik Sever</string>
