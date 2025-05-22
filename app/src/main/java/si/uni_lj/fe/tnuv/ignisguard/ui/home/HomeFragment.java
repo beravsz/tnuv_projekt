@@ -152,12 +152,14 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
         switch (status) {
             case "Fire":
                 return getBitmapDescriptor(R.drawable.ic_fire);
+            case "Normal":
+                return getBitmapDescriptor(R.drawable.ic_location_pin_normal);
             case "Rain":
                 return getBitmapDescriptor(R.drawable.ic_rain);
             case "Wind":
-                return getBitmapDescriptor(R.drawable.ic_wind);
+                return getBitmapDescriptor(R.drawable.ic_wind_flag);
             default:
-                return getBitmapDescriptor(R.drawable.ic_sun);
+                return getBitmapDescriptor(R.drawable.ic_location_pin_normal);
         }
     }
 
