@@ -118,6 +118,34 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback {
             }
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(first, 10f));
         }
+
+        // Setup marker click and map click listeners for sensor details card
+        View root = getView();
+        if (root == null) return;
+        final View detailsCard = root.findViewById(R.id.sensor_details_card);
+        final android.widget.TextView nameView = root.findViewById(R.id.text_sensor_name);
+        final android.widget.TextView batteryView = root.findViewById(R.id.text_sensor_battery);
+        final android.widget.TextView statusView = root.findViewById(R.id.text_sensor_status);
+
+        mMap.setOnMarkerClickListener(marker -> {
+            Object tag = marker.getTag();
+            if (tag instanceof Sensor) {
+                Sensor sensor = (Sensor) tag;
+                nameView.setText(sensor.name);
+                batteryView.setText("Battery: " + sensor.battery + "%");
+                statusView.setText("Status: " + sensor.status);
+                detailsCard.setVisibility(View.VISIBLE);
+                marker.showInfoWindow();
+            }
+            return true;
+        });
+
+        mMap.setOnMapClickListener(latLng -> {
+            detailsCard.setVisibility(View.GONE);
+            for (Marker marker : sensorMarkers) {
+                marker.hideInfoWindow();
+            }
+        });
     }
 
     private BitmapDescriptor getMarkerIcon(String status) {
