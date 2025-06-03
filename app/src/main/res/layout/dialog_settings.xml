@@ -9,7 +9,7 @@
         android:id="@+id/switch_background_service"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Enable background service"
+        android:text="Notifications"
         android:textSize="16sp"
         android:padding="8dp" />
 
