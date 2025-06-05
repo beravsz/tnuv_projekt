@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import android.content.Context;
 import android.util.Log;
+import androidx.fragment.app.FragmentActivity;
 
 public class SensorManager {
     private static SensorManager instance;
@@ -21,6 +22,7 @@ public class SensorManager {
     private boolean isRunning = false;
     private static final long UPDATE_INTERVAL = 10000; // 10 seconds in milliseconds
     private static Context globalContext;
+    private static FragmentActivity currentActivity;
 
     public interface OnSensorUpdateListener {
         void onSensorUpdated(Sensor sensor, String oldStatus);
@@ -64,6 +66,10 @@ public class SensorManager {
         globalContext = context.getApplicationContext();
     }
 
+    public static void setCurrentActivity(FragmentActivity activity) {
+        currentActivity = activity;
+    }
+
     private void notifyListeners(Sensor sensor, String oldStatus) {
         if (oldStatus != null && !oldStatus.equals(sensor.status) && globalContext != null) {
             EventTimelineManager timeline = EventTimelineManager.getInstance(globalContext);
@@ -97,8 +103,8 @@ public class SensorManager {
                 for (int i = 0; i < sensors.size(); i++) {
                     Sensor sensor = sensors.get(i);
                     String oldStatus = sensor.status;
-                    // Generate new status (excluding Fire)
-                    String[] statuses = {"Normal", "Wind", "Rain"};
+                    // Generate new status (including Fire)
+                    String[] statuses = {"Normal", "Wind", "Rain", "Fire"};
                     String newStatus;
                     do {
                         newStatus = statuses[random.nextInt(statuses.length)];
@@ -106,6 +112,15 @@ public class SensorManager {
                     // Update sensor status
                     sensor.status = newStatus;
                     Log.d("SensorManager", "Changed status for sensor " + (i + 1) + " (" + sensor.name + ") from " + oldStatus + " to " + newStatus);
+                    
+                    // Show fire alert dialog if status changed to Fire
+                    if (newStatus.equals("Fire") && currentActivity != null) {
+                        handler.post(() -> {
+                            FireAlertDialog.newInstance(sensor.name)
+                                .show(currentActivity.getSupportFragmentManager(), "fire_alert");
+                        });
+                    }
+                    
                     notifyListeners(sensor, oldStatus);
                 }
             } else {
