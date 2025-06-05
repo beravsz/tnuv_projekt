@@ -42,7 +42,7 @@ import java.util.Locale;
 public class DashboardFragment extends Fragment implements SensorManager.OnSensorUpdateListener {
 
     private FragmentDashboardBinding binding;
-    private List<Sensor> sensors = new ArrayList<>();
+    private List<Sensor> sensors;
     private SensorAdapter adapter;
     private SharedPreferences prefs;
     private Gson gson = new Gson();
@@ -66,21 +66,17 @@ public class DashboardFragment extends Fragment implements SensorManager.OnSenso
 
         prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
         
-        // Load sensors from shared preferences
-        sensors = loadSensors();
-        
-        // Update sensors list with current values from SensorManager
-        List<Sensor> currentSensors = sensorManager.getSensors();
-        for (Sensor currentSensor : currentSensors) {
-            for (int i = 0; i < sensors.size(); i++) {
-                if (sensors.get(i).name.equals(currentSensor.name)) {
-                    sensors.set(i, currentSensor);
-                    break;
-                }
+        // Use the sensors list from SensorManager directly
+        sensorManager = SensorManager.getInstance();
+        // Load saved sensors into SensorManager if empty
+        if (sensorManager.getSensors().isEmpty()) {
+            List<Sensor> savedSensors = loadSensors();
+            for (Sensor s : savedSensors) {
+                sensorManager.addSensor(s);
             }
         }
-        saveSensors(); // Save the updated values
-
+        sensors = sensorManager.getSensors();
+        
         RecyclerView recyclerView = binding.recyclerSensors;
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new SensorAdapter(sensors);
@@ -113,7 +109,7 @@ public class DashboardFragment extends Fragment implements SensorManager.OnSenso
         // Find and update the sensor in our list
         for (int i = 0; i < sensors.size(); i++) {
             if (sensors.get(i).name.equals(sensor.name)) {
-                sensors.set(i, sensor);
+                // No need to set, as it's the same object; just notify the adapter
                 adapter.notifyItemChanged(i);
                 saveSensors(); // Save the updated values
                 break;
@@ -127,15 +123,8 @@ public class DashboardFragment extends Fragment implements SensorManager.OnSenso
             Type type = new TypeToken<List<Sensor>>(){}.getType();
             return gson.fromJson(json, type);
         } else {
-            List<Sensor> defaultSensors = new ArrayList<>(Arrays.asList(
-                new Sensor(getString(R.string.sensor_tivoli), 88, getString(R.string.status_normal)),
-                new Sensor(getString(R.string.sensor_roznik_sever), 71, getString(R.string.status_wind)),
-                new Sensor(getString(R.string.sensor_roznik_jug), 69, getString(R.string.status_normal)),
-                new Sensor(getString(R.string.sensor_bled), 93, getString(R.string.status_rain))
-            ));
-            // Save default sensors
-            prefs.edit().putString(SENSORS_KEY, gson.toJson(defaultSensors)).apply();
-            return defaultSensors;
+            // No default sensors. Start with empty list.
+            return new ArrayList<>();
         }
     }
 

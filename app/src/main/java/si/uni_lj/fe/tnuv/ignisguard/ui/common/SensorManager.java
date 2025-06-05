@@ -9,6 +9,8 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import android.content.Context;
+import android.util.Log;
 
 public class SensorManager {
     private static SensorManager instance;
@@ -17,25 +19,15 @@ public class SensorManager {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Random random = new Random();
     private boolean isRunning = false;
-    private final Map<String, Long> lastStatusChangeTime = new HashMap<>();
-    private static final long MIN_STATUS_DURATION = 30000; // 30 seconds in milliseconds
     private static final long UPDATE_INTERVAL = 10000; // 10 seconds in milliseconds
+    private static Context globalContext;
 
     public interface OnSensorUpdateListener {
         void onSensorUpdated(Sensor sensor, String oldStatus);
     }
 
     private SensorManager() {
-        // Initialize with default sensors
-        sensors.add(new Sensor("Tivoli", 88, "Normal"));
-        sensors.add(new Sensor("Rožnik Sever", 71, "Wind"));
-        sensors.add(new Sensor("Rožnik Jug", 69, "Normal"));
-        sensors.add(new Sensor("Bled", 93, "Rain"));
-        
-        // Initialize last status change time for each sensor
-        for (Sensor sensor : sensors) {
-            lastStatusChangeTime.put(sensor.name, System.currentTimeMillis());
-        }
+        // No default sensors. Sensors list starts empty.
     }
 
     public static synchronized SensorManager getInstance() {
@@ -51,13 +43,11 @@ public class SensorManager {
 
     public void addSensor(Sensor sensor) {
         sensors.add(sensor);
-        lastStatusChangeTime.put(sensor.name, System.currentTimeMillis());
         notifyListeners(sensor, null);
     }
 
     public void removeSensor(Sensor sensor) {
         sensors.remove(sensor);
-        lastStatusChangeTime.remove(sensor.name);
     }
 
     public void addListener(OnSensorUpdateListener listener) {
@@ -70,7 +60,17 @@ public class SensorManager {
         listeners.remove(listener);
     }
 
+    public static void setGlobalContext(Context context) {
+        globalContext = context.getApplicationContext();
+    }
+
     private void notifyListeners(Sensor sensor, String oldStatus) {
+        if (oldStatus != null && !oldStatus.equals(sensor.status) && globalContext != null) {
+            EventTimelineManager timeline = EventTimelineManager.getInstance(globalContext);
+            Calendar now = Calendar.getInstance();
+            String description = sensor.name + " changed status from " + oldStatus + " to " + sensor.status;
+            timeline.addEvent(new EventTimelineManager.Event(now, description, sensor.status));
+        }
         for (OnSensorUpdateListener listener : listeners) {
             listener.onSensorUpdated(sensor, oldStatus);
         }
@@ -93,30 +93,23 @@ public class SensorManager {
 
         handler.postDelayed(() -> {
             if (!sensors.isEmpty()) {
-                long currentTime = System.currentTimeMillis();
-                
-                // Get list of sensors eligible for status change
-                List<Sensor> eligibleSensors = sensors.stream()
-                    .filter(sensor -> currentTime - lastStatusChangeTime.get(sensor.name) >= MIN_STATUS_DURATION)
-                    .collect(Collectors.toList());
-                
-                // If there are eligible sensors, change one randomly
-                if (!eligibleSensors.isEmpty()) {
-                    Sensor sensor = eligibleSensors.get(random.nextInt(eligibleSensors.size()));
+                // Change status for all sensors
+                for (int i = 0; i < sensors.size(); i++) {
+                    Sensor sensor = sensors.get(i);
                     String oldStatus = sensor.status;
-                    
                     // Generate new status (excluding Fire)
                     String[] statuses = {"Normal", "Wind", "Rain"};
                     String newStatus;
                     do {
                         newStatus = statuses[random.nextInt(statuses.length)];
                     } while (newStatus.equals(oldStatus));
-
                     // Update sensor status
                     sensor.status = newStatus;
-                    lastStatusChangeTime.put(sensor.name, currentTime);
+                    Log.d("SensorManager", "Changed status for sensor " + (i + 1) + " (" + sensor.name + ") from " + oldStatus + " to " + newStatus);
                     notifyListeners(sensor, oldStatus);
                 }
+            } else {
+                Log.d("SensorManager", "No sensors in list.");
             }
             scheduleNextUpdate();
         }, UPDATE_INTERVAL);

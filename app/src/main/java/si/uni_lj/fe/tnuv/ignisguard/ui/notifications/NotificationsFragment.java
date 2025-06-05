@@ -27,23 +27,23 @@ import si.uni_lj.fe.tnuv.ignisguard.R;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
+import si.uni_lj.fe.tnuv.ignisguard.ui.common.EventTimelineManager;
+import java.util.HashSet;
+import java.util.Set;
 
 public class NotificationsFragment extends Fragment implements SensorManager.OnSensorUpdateListener {
 
     private FragmentNotificationsBinding binding;
     private RecyclerView recyclerView;
-    private final List<Event> events = new ArrayList<>();
+    private EventTimelineManager timelineManager;
     private EventAdapter adapter;
     private SensorManager sensorManager;
-    private SharedPreferences prefs;
-    private Gson gson = new Gson();
-    private static final String EVENTS_KEY = "events_list";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         sensorManager = SensorManager.getInstance();
-        prefs = PreferenceManager.getDefaultSharedPreferences(getContext());
+        timelineManager = EventTimelineManager.getInstance(requireContext());
     }
 
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -57,16 +57,18 @@ public class NotificationsFragment extends Fragment implements SensorManager.OnS
         recyclerView = binding.recyclerEvents;
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        // Load events from SharedPreferences
-        loadEvents();
-        
-        // If no events exist, generate initial random events
-        if (events.isEmpty()) {
-            generateRandomEvents();
-            saveEvents();
+        // Filter events to only those relevant to current sensors
+        List<Sensor> currentSensors = sensorManager.getSensors();
+        Set<String> sensorNames = new HashSet<>();
+        for (Sensor s : currentSensors) sensorNames.add(s.name);
+        List<EventTimelineManager.Event> filteredEvents = new ArrayList<>();
+        for (EventTimelineManager.Event event : timelineManager.getEvents()) {
+            String sensorName = extractSensorName(event.description);
+            if (sensorNames.contains(sensorName)) {
+                filteredEvents.add(event);
+            }
         }
-
-        adapter = new EventAdapter(events);
+        adapter = new EventAdapter(filteredEvents);
         recyclerView.setAdapter(adapter);
 
         // Initialize sensor manager and start updates
@@ -76,69 +78,38 @@ public class NotificationsFragment extends Fragment implements SensorManager.OnS
         return root;
     }
 
+    // Helper to extract sensor name from event description
+    private String extractSensorName(String description) {
+        // Assumes format: "<SensorName> changed status from ..."
+        int idx = description.indexOf(" changed status");
+        if (idx > 0) {
+            return description.substring(0, idx);
+        }
+        return description;
+    }
+
     @Override
     public void onSensorUpdated(Sensor sensor, String oldStatus) {
-        if (oldStatus != null) {
-            Calendar now = Calendar.getInstance();
-            String description = sensor.name + " changed status from " + oldStatus + " to " + sensor.status;
-            events.add(0, new Event(now, description, sensor.status));
-            adapter.notifyItemInserted(0);
-            recyclerView.smoothScrollToPosition(0);
-            saveEvents(); // Save events after adding new one
-        }
-    }
-
-    private void loadEvents() {
-        String json = prefs.getString(EVENTS_KEY, null);
-        if (json != null) {
-            Type type = new TypeToken<List<Event>>(){}.getType();
-            List<Event> loadedEvents = gson.fromJson(json, type);
-            events.clear();
-            events.addAll(loadedEvents);
-        }
-    }
-
-    private void saveEvents() {
-        prefs.edit().putString(EVENTS_KEY, gson.toJson(events)).apply();
-    }
-
-    private void generateRandomEvents() {
-        String[] sensorNames = {"Tivoli", "Rožnik Sever", "Rožnik Jug", "Bled"};
-        String[] initialStatuses = {"Normal", "Wind", "Rain"}; // Statuses for initial history
-        Random random = new Random();
-        Calendar now = Calendar.getInstance();
-        for (String sensor : sensorNames) {
-            int eventCount = 2 + random.nextInt(3); // 2-4 events per sensor
-            String prevStatus = initialStatuses[random.nextInt(initialStatuses.length)];
-            Calendar eventTime = (Calendar) now.clone();
-            for (int i = 0; i < eventCount; i++) {
-                String newStatus;
-                do {
-                    newStatus = initialStatuses[random.nextInt(initialStatuses.length)];
-                } while (newStatus.equals(prevStatus));
-                eventTime.add(Calendar.MINUTE, -random.nextInt(120) - 10); // randomize time
-                String description = sensor + " changed status from " + prevStatus + " to " + newStatus;
-                events.add(new Event((Calendar) eventTime.clone(), description, newStatus));
-                prevStatus = newStatus;
+        // Refresh filtered events on sensor update
+        List<Sensor> currentSensors = sensorManager.getSensors();
+        Set<String> sensorNames = new HashSet<>();
+        for (Sensor s : currentSensors) sensorNames.add(s.name);
+        List<EventTimelineManager.Event> filteredEvents = new ArrayList<>();
+        for (EventTimelineManager.Event event : timelineManager.getEvents()) {
+            String sensorName = extractSensorName(event.description);
+            if (sensorNames.contains(sensorName)) {
+                filteredEvents.add(event);
             }
         }
-        Collections.sort(events, (a, b) -> b.time.compareTo(a.time));
-    }
-
-    static class Event {
-        Calendar time;
-        String description;
-        String status;
-        Event(Calendar time, String description, String status) {
-            this.time = time;
-            this.description = description;
-            this.status = status;
-        }
+        adapter.events.clear();
+        adapter.events.addAll(filteredEvents);
+        adapter.notifyDataSetChanged();
+        recyclerView.smoothScrollToPosition(0);
     }
 
     static class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHolder> {
-        private final List<Event> events;
-        EventAdapter(List<Event> events) {
+        final List<EventTimelineManager.Event> events;
+        EventAdapter(List<EventTimelineManager.Event> events) {
             this.events = events;
         }
         @NonNull
@@ -149,7 +120,7 @@ public class NotificationsFragment extends Fragment implements SensorManager.OnS
         }
         @Override
         public void onBindViewHolder(@NonNull EventViewHolder holder, int position) {
-            Event event = events.get(position);
+            EventTimelineManager.Event event = events.get(position);
             java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm");
             holder.time.setText(sdf.format(event.time.getTime()));
             holder.description.setText(event.description);

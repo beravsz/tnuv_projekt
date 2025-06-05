@@ -81,12 +81,8 @@ public class HomeFragment extends Fragment implements OnMapReadyCallback, Sensor
             Type type = new TypeToken<List<Sensor>>(){}.getType();
             return gson.fromJson(json, type);
         } else {
-            List<Sensor> defaultSensors = new ArrayList<>();
-            defaultSensors.add(new Sensor("Tivoli", 88, "Normal"));
-            defaultSensors.add(new Sensor("Rožnik Sever", 71, "Wind"));
-            defaultSensors.add(new Sensor("Rožnik Jug", 69, "Normal"));
-            defaultSensors.add(new Sensor("Bled", 93, "Rain"));
-            return defaultSensors;
+            // No default sensors. Start with empty list.
+            return new ArrayList<>();
         }
     }
 
