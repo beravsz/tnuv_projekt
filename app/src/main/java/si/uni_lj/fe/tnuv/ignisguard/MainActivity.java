@@ -118,7 +118,11 @@ public class MainActivity extends AppCompatActivity {
         
         switchBackgroundService.setOnCheckedChangeListener((buttonView, isChecked) -> {
             prefs.edit().putBoolean(PREF_BACKGROUND_SERVICE, isChecked).apply();
-            // Here you can add logic to start/stop the background service
+            if (isChecked) {
+                startSensorMonitoringService();
+            } else {
+                stopSensorMonitoringService();
+            }
         });
 
         builder.setView(dialogView)
@@ -159,6 +163,11 @@ public class MainActivity extends AppCompatActivity {
         } else {
             startService(serviceIntent);
         }
+    }
+
+    private void stopSensorMonitoringService() {
+        Intent serviceIntent = new Intent(this, SensorMonitoringService.class);
+        stopService(serviceIntent);
     }
 
     private void handleNotificationClick() {
