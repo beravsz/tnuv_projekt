@@ -88,7 +88,9 @@ public class DashboardFragment extends Fragment implements SensorManager.OnSenso
                 .setTitle("Delete this sensor?")
                 .setMessage("Are you sure you want to delete this sensor?")
                 .setPositiveButton("Yes", (dialog, which) -> {
+                    Sensor sensorToRemove = sensors.get(position);
                     sensors.remove(position);
+                    sensorManager.removeSensor(sensorToRemove);
                     adapter.notifyItemRemoved(position);
                     saveSensors();
                 })
@@ -213,7 +215,9 @@ public class DashboardFragment extends Fragment implements SensorManager.OnSenso
                 } catch (Exception e) {
                     Toast.makeText(getContext(), "Invalid DMS input, using (0,0)", Toast.LENGTH_SHORT).show();
                 }
-                sensors.add(new Sensor(name, battery, status, lat, lon));
+                Sensor newSensor = new Sensor(name, battery, status, lat, lon);
+                sensorManager.addSensor(newSensor);
+                sensors.add(newSensor);
                 adapter.notifyItemInserted(sensors.size() - 1);
                 saveSensors();
             }
