@@ -1,5 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+check(localPropertiesFile.exists()) { "Missing local.properties file with MAPS_API_KEY" }
+localProperties.load(localPropertiesFile.inputStream())
+
+val MAPS_API_KEY: String = checkNotNull(localProperties.getProperty("MAPS_API_KEY")) {
+    "MAPS_API_KEY is missing in local.properties"
 }
 
 android {
@@ -14,6 +25,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Inject API key into resources
+        resValue("string", "google_maps_key", MAPS_API_KEY)
     }
 
     buildTypes {
@@ -25,17 +39,18 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     buildFeatures {
         viewBinding = true
     }
 }
 
 dependencies {
-
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.constraintlayout)
@@ -44,8 +59,9 @@ dependencies {
     implementation(libs.navigation.fragment)
     implementation(libs.navigation.ui)
     implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-    implementation("com.google.android.gms:play-services-maps:18.2.0")
 }
